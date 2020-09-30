@@ -73,3 +73,13 @@ def shared_template_modifier(template_type, template_name, device_templates):
     else:
         template_type = "{0}-shared".format(template_type)
     return template_type
+
+
+def get_listener_conf(old_listener):
+    shared_template = False
+    templates = ["template-virtual-port-shared", "template-http-shared",
+                 "template-tcp-shared", "template-policy-shared"]
+    for template in templates:
+        if template in old_listener['port']:
+            shared_template = True
+    return shared_template

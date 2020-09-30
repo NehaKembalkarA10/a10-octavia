@@ -30,10 +30,18 @@ LOG = logging.getLogger(__name__)
 
 class ListenersParent(object):
 
-    def set(self, set_method, loadbalancer, listener, ssl_template=None):
+    def set(self, set_method, loadbalancer, listener, ssl_template=None, update=False):
         listener.load_balancer = loadbalancer
         listener.protocol = openstack_mappings.virtual_port_protocol(
             self.axapi_client, listener.protocol).lower()
+
+        shared_template = False
+        if update:
+            old_listener = self.axapi_client.slb.virtual_server.vport.get(loadbalancer.id,
+                                                                          listener.id,
+                                                                          listener.protocol,
+                                                                          listener.protocol_port)
+            shared_template = utils.get_listener_conf(old_listener)
 
         ipinip = CONF.listener.ipinip
         use_rcv_hop = CONF.listener.use_rcv_hop_for_resp
@@ -71,7 +79,7 @@ class ListenersParent(object):
         template_vport = CONF.listener.template_virtual_port
         if template_vport and template_vport.lower() != 'none':
             template_key = 'template-virtual-port'
-            if CONF.a10_global.use_shared_for_template_lookup:
+            if CONF.a10_global.use_shared_for_template_lookup or shared_template:
                 template_key = utils.shared_template_modifier(template_key,
                                                               template_vport,
                                                               device_templates)
@@ -86,7 +94,7 @@ class ListenersParent(object):
             template_http = CONF.listener.template_http
             if template_http and template_http.lower() != 'none':
                 template_key = 'template-http'
-                if CONF.a10_global.use_shared_for_template_lookup:
+                if CONF.a10_global.use_shared_for_template_lookup or shared_template:
                     template_key = utils.shared_template_modifier(template_key,
                                                                   template_http,
                                                                   device_templates)
@@ -99,7 +107,7 @@ class ListenersParent(object):
             template_tcp = CONF.listener.template_tcp
             if template_tcp and template_tcp.lower() != 'none':
                 template_key = 'template-tcp'
-                if CONF.a10_global.use_shared_for_template_lookup:
+                if CONF.a10_global.use_shared_for_template_lookup or shared_template:
                     template_key = utils.shared_template_modifier(template_key,
                                                                   template_tcp,
                                                                   device_templates)
@@ -108,7 +116,7 @@ class ListenersParent(object):
         template_policy = CONF.listener.template_policy
         if template_policy and template_policy.lower() != 'none':
             template_key = 'template-policy'
-            if CONF.a10_global.use_shared_for_template_lookup:
+            if CONF.a10_global.use_shared_for_template_lookup or shared_template:
                 template_key = utils.shared_template_modifier(template_key,
                                                               template_policy,
                                                               device_templates)
@@ -164,7 +172,7 @@ class ListenerUpdate(ListenersParent, task.Task):
         try:
             if listener:
                 self.set(self.axapi_client.slb.virtual_server.vport.update,
-                         loadbalancer, listener)
+                         loadbalancer, listener, update=True)
                 LOG.debug("Successfully updated listener: %s", listener.id)
         except (acos_errors.ACOSException, ConnectionError) as e:
             LOG.exception("Failed to update listener: %s", listener.id)
