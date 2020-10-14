@@ -114,6 +114,11 @@ class CheckExistingProjectToThunderMappedEntries(BaseDatabaseTask):
     """
 
     def execute(self, loadbalancer, vthunder_config):
+        if CONF.a10_global.use_parent_partition:
+            parent_project_id = utils.get_parent_project(
+                vthunder_config.project_id)
+            if parent_project_id:
+                vthunder_config.partition_name = parent_project_id[:14]
         vthunder_ids = self.vthunder_repo.get_vthunders_by_project_id(
             db_apis.get_session(),
             project_id=loadbalancer.project_id)
@@ -141,6 +146,12 @@ class CheckExistingThunderToProjectMappedEntries(BaseDatabaseTask):
     """
 
     def execute(self, loadbalancer, vthunder_config):
+        if CONF.a10_global.use_parent_partition:
+            parent_project_id = utils.get_parent_project(
+                vthunder_config.project_id)
+            if parent_project_id:
+                vthunder_config.partition_name = parent_project_id[:14]
+                return
         vthunder_ids = self.vthunder_repo.get_vthunders_by_ip_address(
             db_apis.get_session(),
             ip_address=vthunder_config.ip_address)
